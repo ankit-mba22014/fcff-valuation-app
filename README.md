@@ -1,24 +1,51 @@
-# 💸 FCFF Valuation App (DCF Model)
+# AI Financial Analyst
 
-This Streamlit application allows you to estimate the enterprise value of a company using the Discounted Cash Flow (DCF) method based on Free Cash Flow to Firm (FCFF). Only Nifty 50 companies are supported.
+![Demo](https://via.placeholder.com/800x400.png?text=Financial+Valuation+App+Demo)
 
-## 📊 Features
-- Search Nifty 50 tickers by partial input
-- Input FCFF projections
-- Set WACC and terminal growth rate
-- Calculates present value of FCFF and terminal value
-- Summary metrics and breakdown
+An intelligent web app for automated DCF valuations and financial analysis powered by AI.
 
-## 🛠 Tech Stack
-- Python
-- Streamlit
-- yFinance
-- NumPy
+## Features
+- **DCF Valuation**: FCFF-based discounted cash flow analysis
+- **AI Projections**: LLM-powered growth rate predictions
+- **Sensitivity Analysis**: Interactive heatmaps for scenario testing
+- **PDF Reports**: Exportable valuation summaries
+- **Vector Database**: Pinecone-powered company comparisons
 
-## 🚀 Run Locally
+## Tech Stack
+- **Frontend**: Streamlit
+- **AI/ML**: Hugging Face, LangChain
+- **Database**: Pinecone
+- **Data**: Yahoo Finance
 
-```bash
-git clone https://github.com/yourusername/fcff-valuation-app.git
-cd fcff-valuation-app
-pip install -r requirements.txt
-streamlit run streamlit_app.py
+## Setup
+
+### 1. Prerequisites
+- [Streamlit Account](https://share.streamlit.io/)
+- [Pinecone Account](https://www.pinecone.io/)
+- [Hugging Face Account](https://huggingface.co/)
+
+### 2. Configuration
+
+#### Pinecone
+1. Create index:
+   - **Name**: `financial-embeddings`
+   - **Dimension**: `384`
+   - **Metric**: `cosine`
+   - **Cloud**: AWS
+   - **Region**: `us-east-1`
+2. Get API key from dashboard
+
+#### Hugging Face
+1. Create access token with `read` permissions
+2. Accept model terms for:
+   - [BAAI/bge-small-en-v1.5](https://huggingface.co/BAAI/bge-small-en-v1.5)
+   - [flan-t5-xxl](https://huggingface.co/google/flan-t5-xxl)
+
+### 3. Streamlit Secrets
+Add these in Streamlit Cloud settings:
+```toml
+[pinecone]
+API_KEY = "your-pinecone-key"
+
+[huggingface]
+TOKEN = "your-hf-token"
