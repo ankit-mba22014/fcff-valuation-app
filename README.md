@@ -1,6 +1,5 @@
 # AI Financial Analyst
 
-![Demo](https://via.placeholder.com/800x400.png?text=Financial+Valuation+App+Demo)
 
 An intelligent web app for automated DCF valuations and financial analysis powered by AI.
 
