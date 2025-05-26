@@ -83,8 +83,8 @@ except Exception as e:
     st.stop()
 
 # Financial Analysis Functions
+@st.cache_data(ttl=3600)  # Cache for 1 hour (3600 seconds)
 def get_financial_data(ticker):
-    """Fetch financial data from Yahoo Finance"""
     try:
         company = yf.Ticker(ticker)
         info = company.info
@@ -94,6 +94,10 @@ def get_financial_data(ticker):
             'balance_sheet': company.balance_sheet,
             'info': info
         }
+        return financials
+    except Exception as e:
+        st.error(f"Error fetching data: {str(e)}")
+        return None
         
         # Check required metrics
         required = ['EBIT', 'Tax Rate For Calcs', 
