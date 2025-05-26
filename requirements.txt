@@ -1,6 +1,6 @@
 streamlit==1.32.0
 yfinance==0.2.37
-pandas==2.2.1  # First 3.13-compatible release
+pandas==2.1.3; python_version < '3.13' # First 3.13-compatible release
 numpy==1.26.4
 plotly==5.18.0
 pinecone-client==3.2.2
