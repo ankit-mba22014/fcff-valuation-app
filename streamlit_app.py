@@ -69,8 +69,7 @@ try:
     embedder = HuggingFaceEmbeddings(
         model_name="BAAI/bge-small-en-v1.5",
         model_kwargs={'device': 'cpu'},
-        encode_kwargs={'normalize_embeddings': True},
-        huggingfacehub_api_token=st.secrets['HUGGINGFACE']['TOKEN']
+        encode_kwargs={'normalize_embeddings': True}
     )
 
     llm = HuggingFaceHub(
