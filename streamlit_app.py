@@ -78,6 +78,8 @@ if 'financial_cache' not in st.session_state:
     st.session_state.financial_cache = {}
 if 'current_company_data' not in st.session_state:
     st.session_state.current_company_data = None
+if 'active_tab' not in st.session_state:
+    st.session_state.active_tab = "analysis"
 
 def create_session_with_retry():
     """Create requests session with retry strategy"""
@@ -393,102 +395,142 @@ def process_chat_query(query, company_data):
     result = calculate_financial_ratio(company_data, ratio_name, fy_year, quarter)
     return result
 
+def show_analysis_tab():
+    """Display FCFF Analysis content"""
+    st.header("Free Cash Flow Analysis")
+    
+    # Stock selection
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        selected_stock = st.selectbox(
+            "Select NIFTY 50 Stock:",
+            options=list(NIFTY_50_STOCKS.keys()),
+            format_func=lambda x: f"{NIFTY_50_STOCKS[x]} ({x})",
+            key="stock_selector"
+        )
+    
+    with col2:
+        if st.button("📈 Analyze", type="primary"):
+            with st.spinner("Fetching minimal data..."):
+                financial_data = get_minimal_financial_data(selected_stock)
+                if financial_data:
+                    st.session_state.financial_cache[selected_stock] = financial_data
+                    st.session_state.current_company_data = financial_data
+                    st.success("✅ Data loaded!")
+                else:
+                    st.error("❌ Failed to fetch data")
+    
+    # Display FCFF analysis
+    if selected_stock in st.session_state.financial_cache:
+        data = st.session_state.financial_cache[selected_stock]
+        st.session_state.current_company_data = data
+        
+        st.subheader(f"📊 {data['company_name']}")
+        st.write(f"**Sector:** {data['sector']} | **Ticker:** {data['ticker']}")
+        
+        # Calculate FCFF
+        fcff_history = calculate_fcff_minimal(data)
+        
+        if fcff_history:
+            # Display FCFF chart
+            years = [f"Year {i+1}" for i in range(len(fcff_history))]
+            fig = px.bar(
+                x=years,
+                y=[x/1e6 for x in fcff_history],  # Convert to millions
+                title="Free Cash Flow to Firm (₹ Millions)",
+                labels={'y': 'FCFF (₹ Millions)', 'x': 'Period'}
+            )
+            fig.update_traces(marker_color='green')
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # DCF Valuation
+            st.subheader("🎯 DCF Valuation")
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                growth_rate = st.slider("Growth Rate (%)", 0, 25, 10) / 100
+            with col2:
+                discount_rate = st.slider("Discount Rate (%)", 8, 20, 12) / 100
+            with col3:
+                terminal_growth = st.slider("Terminal Growth (%)", 1, 6, 3) / 100
+            
+            enterprise_value = simple_dcf_valuation(fcff_history, growth_rate, discount_rate, terminal_growth)
+            
+            st.metric(
+                "Enterprise Value", 
+                f"₹{enterprise_value/1e9:.2f}B",
+                delta=f"Based on {len(fcff_history)} years FCFF"
+            )
+            
+        else:
+            st.warning("Unable to calculate FCFF with available data")
+
+def show_chat_tab():
+    """Display Financial Ratio Chat content"""
+    st.header("🧮 Financial Ratio Assistant")
+    st.markdown("*Ask about financial ratios for specific FY years*")
+    
+    # Show current company context
+    if st.session_state.current_company_data:
+        company_name = st.session_state.current_company_data.get('company_name', 'Unknown')
+        st.info(f"📊 **Current Company:** {company_name}")
+    else:
+        st.warning("⚠️ Please select and analyze a company first in the FCFF Analysis tab")
+    
+    # Display chat history
+    for i, (role, message) in enumerate(st.session_state.chat_history):
+        if role == "user":
+            st.chat_message("user").write(message)
+        else:
+            st.chat_message("assistant").write(message)
+    
+    # Example queries
+    with st.expander("💡 Example Questions"):
+        st.markdown("""
+        **Financial Ratio Questions:**
+        - What is the ROE for FY23?
+        - Show me current ratio for FY24
+        - What's the debt to equity ratio for FY22?
+        - Calculate gross margin for FY23
+        - What is asset turnover for FY24?
+        
+        **Available Ratios:**
+        - ROE, ROA, Net Margin, Gross Margin
+        - Current Ratio, Quick Ratio  
+        - Debt-to-Equity, Debt Ratio, Asset Turnover
+        """)
+    
+    # Chat controls
+    if st.button("🗑️ Clear Chat History"):
+        st.session_state.chat_history = []
+        st.rerun()
+
 # Main Streamlit App
 def main():
     st.title("🏦 NIFTY 50 Financial Analyst")
     st.markdown("*FCFF Analysis & Financial Ratio Chat Assistant*")
     
-    # Create tabs
-    analysis_tab, chat_tab = st.tabs(["📊 FCFF Analysis", "🧮 Financial Ratio Chat"])
+    # Tab selection buttons
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("📊 FCFF Analysis", use_container_width=True, 
+                     type="primary" if st.session_state.active_tab == "analysis" else "secondary"):
+            st.session_state.active_tab = "analysis"
+    with col2:
+        if st.button("🧮 Financial Ratio Chat", use_container_width=True,
+                     type="primary" if st.session_state.active_tab == "chat" else "secondary"):
+            st.session_state.active_tab = "chat"
     
-    with analysis_tab:
-        st.header("Free Cash Flow Analysis")
-        
-        # Stock selection
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            selected_stock = st.selectbox(
-                "Select NIFTY 50 Stock:",
-                options=list(NIFTY_50_STOCKS.keys()),
-                format_func=lambda x: f"{NIFTY_50_STOCKS[x]} ({x})",
-                key="stock_selector"
-            )
-        
-        with col2:
-            if st.button("📈 Analyze", type="primary"):
-                with st.spinner("Fetching minimal data..."):
-                    financial_data = get_minimal_financial_data(selected_stock)
-                    if financial_data:
-                        st.session_state.financial_cache[selected_stock] = financial_data
-                        st.session_state.current_company_data = financial_data
-                        st.success("✅ Data loaded!")
-                    else:
-                        st.error("❌ Failed to fetch data")
-        
-        # Display FCFF analysis
-        if selected_stock in st.session_state.financial_cache:
-            data = st.session_state.financial_cache[selected_stock]
-            st.session_state.current_company_data = data
-            
-            st.subheader(f"📊 {data['company_name']}")
-            st.write(f"**Sector:** {data['sector']} | **Ticker:** {data['ticker']}")
-            
-            # Calculate FCFF
-            fcff_history = calculate_fcff_minimal(data)
-            
-            if fcff_history:
-                # Display FCFF chart
-                years = [f"Year {i+1}" for i in range(len(fcff_history))]
-                fig = px.bar(
-                    x=years,
-                    y=[x/1e6 for x in fcff_history],  # Convert to millions
-                    title="Free Cash Flow to Firm (₹ Millions)",
-                    labels={'y': 'FCFF (₹ Millions)', 'x': 'Period'}
-                )
-                fig.update_traces(marker_color='green')
-                st.plotly_chart(fig, use_container_width=True)
-                
-                # DCF Valuation
-                st.subheader("🎯 DCF Valuation")
-                col1, col2, col3 = st.columns(3)
-                
-                with col1:
-                    growth_rate = st.slider("Growth Rate (%)", 0, 25, 10) / 100
-                with col2:
-                    discount_rate = st.slider("Discount Rate (%)", 8, 20, 12) / 100
-                with col3:
-                    terminal_growth = st.slider("Terminal Growth (%)", 1, 6, 3) / 100
-                
-                enterprise_value = simple_dcf_valuation(fcff_history, growth_rate, discount_rate, terminal_growth)
-                
-                st.metric(
-                    "Enterprise Value", 
-                    f"₹{enterprise_value/1e9:.2f}B",
-                    delta=f"Based on {len(fcff_history)} years FCFF"
-                )
-                
-            else:
-                st.warning("Unable to calculate FCFF with available data")
+    st.markdown("---")
     
-    with chat_tab:
-        st.header("🧮 Financial Ratio Assistant")
-        st.markdown("*Ask about financial ratios for specific FY years*")
-        
-        # Show current company context
-        if st.session_state.current_company_data:
-            company_name = st.session_state.current_company_data.get('company_name', 'Unknown')
-            st.info(f"📊 **Current Company:** {company_name}")
-        else:
-            st.warning("⚠️ Please select and analyze a company first in the FCFF Analysis tab")
-        
-        # Chat interface
-        for i, (role, message) in enumerate(st.session_state.chat_history):
-            if role == "user":
-                st.chat_message("user").write(message)
-            else:
-                st.chat_message("assistant").write(message)
-        
-        # Chat input
+    # Display content based on active tab
+    if st.session_state.active_tab == "analysis":
+        show_analysis_tab()
+    else:
+        show_chat_tab()
+    
+    # Chat input at the top level (only show when in chat tab)
+    if st.session_state.active_tab == "chat":
         user_query = st.chat_input("Ask about financial ratios (e.g., 'What is ROE for FY23?')")
         
         if user_query:
@@ -501,27 +543,6 @@ def main():
             # Add assistant response
             st.session_state.chat_history.append(("assistant", response))
             
-            st.rerun()
-        
-        # Example queries
-        with st.expander("💡 Example Questions"):
-            st.markdown("""
-            **Financial Ratio Questions:**
-            - What is the ROE for FY23?
-            - Show me current ratio for FY24
-            - What's the debt to equity ratio for FY22?
-            - Calculate gross margin for FY23
-            - What is asset turnover for FY24?
-            
-            **Available Ratios:**
-            - ROE, ROA, Net Margin, Gross Margin
-            - Current Ratio, Quick Ratio  
-            - Debt-to-Equity, Debt Ratio, Asset Turnover
-            """)
-        
-        # Chat controls
-        if st.button("🗑️ Clear Chat History"):
-            st.session_state.chat_history = []
             st.rerun()
     
     # Footer
